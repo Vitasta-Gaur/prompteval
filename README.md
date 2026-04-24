@@ -108,6 +108,10 @@ prompteval run -v                       # Verbose output
 prompteval run -vv                      # Debug output
 ```
 
+## Sample Report
+
+Check out a [sample report](examples/sample_report.html) to see what PromptEval generates. Download and open it in your browser to explore the interactive charts and tables.
+
 ## What the Report Shows
 
 The generated HTML report includes:
