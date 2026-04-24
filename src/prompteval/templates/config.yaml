@@ -1,0 +1,32 @@
+providers:
+  anthropic:
+    api_key: "${ANTHROPIC_API_KEY}"
+    models:
+      - claude-sonnet-4-20250514
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    models:
+      - gpt-4o
+  gemini:
+    api_key: "${GEMINI_API_KEY}"
+    models:
+      - gemini-1.5-pro
+  ollama:
+    base_url: "http://localhost:11434"
+    models:
+      - llama3
+
+evaluation:
+  workers: 4
+  timeout: 60
+  prompts_dir: "prompts/"
+  datasets_dir: "datasets/"
+
+security:
+  injection: true
+  pii_detection: true
+  jailbreak: true
+
+scoring:
+  judge_provider: "anthropic"
+  judge_model: "claude-sonnet-4-20250514"
