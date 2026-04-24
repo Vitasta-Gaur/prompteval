@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import random
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -18,6 +19,9 @@ from prompteval.security.injection import run_injection_check
 from prompteval.security.jailbreak import run_jailbreak_check
 
 logger = logging.getLogger(__name__)
+
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 1.0  # seconds
 
 
 @dataclass
@@ -108,6 +112,30 @@ def load_datasets(datasets_dir: str) -> list[Dataset]:
     return datasets
 
 
+async def _complete_with_retry(
+    provider: BaseProvider, prompt: str, timeout: int,
+) -> LLMResponse:
+    """Call provider.complete() with retry and exponential backoff."""
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            return await asyncio.wait_for(
+                provider.complete(prompt),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            last_error = asyncio.TimeoutError(f"Timeout after {timeout}s")
+            # Don't retry timeouts — they'll likely time out again
+            raise last_error
+        except Exception as e:
+            last_error = e
+            if attempt < MAX_RETRIES - 1:
+                delay = RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 0.5)
+                logger.info(f"Retry {attempt + 1}/{MAX_RETRIES} after {delay:.1f}s: {e}")
+                await asyncio.sleep(delay)
+    raise last_error
+
+
 async def _run_single(
     semaphore: asyncio.Semaphore,
     provider: BaseProvider,
@@ -120,7 +148,21 @@ async def _run_single(
     timeout: int,
 ) -> EvalResult:
     """Run a single evaluation."""
-    rendered = prompt_template.template.format_map(row)
+    # Render the prompt template safely
+    try:
+        rendered = prompt_template.template.format_map(row)
+    except (KeyError, ValueError, IndexError) as e:
+        return EvalResult(
+            prompt_name=prompt_template.name,
+            dataset_name=dataset.name,
+            row_index=row_index,
+            provider=provider_name,
+            model=model,
+            rendered_prompt="",
+            error=f"Template render failed for prompt='{prompt_template.name}', "
+                  f"dataset='{dataset.name}', row={row_index}: {e}",
+        )
+
     result = EvalResult(
         prompt_name=prompt_template.name,
         dataset_name=dataset.name,
@@ -132,10 +174,7 @@ async def _run_single(
 
     async with semaphore:
         try:
-            response = await asyncio.wait_for(
-                provider.complete(rendered),
-                timeout=timeout,
-            )
+            response = await _complete_with_retry(provider, rendered, timeout)
             result.response = response
             result.estimated_cost = estimate_cost(response)
 
@@ -209,19 +248,25 @@ async def run_evaluation(config: Config) -> tuple[list[EvalResult], list[Securit
         if completed % 5 == 0 or completed == len(tasks):
             click.echo(f"  Progress: {completed}/{len(tasks)}")
 
-    # Quality scoring
+    # Quality scoring (parallelized with semaphore)
     score_cfg = config.scoring
     judge_provider_name = score_cfg.judge_provider
     if judge_provider_name in providers:
         judge_model, judge = providers[judge_provider_name][0]
         click.echo("Running quality scoring (LLM-as-judge)...")
-        for result in results:
-            if result.response and not result.error:
+
+        score_semaphore = asyncio.Semaphore(config.evaluation.workers)
+
+        async def _score_one(r: EvalResult):
+            async with score_semaphore:
                 score, reasoning = await score_quality(
-                    judge, result.rendered_prompt, result.response.text
+                    judge, r.rendered_prompt, r.response.text
                 )
-                result.quality_score = score
-                result.quality_reasoning = reasoning
+                r.quality_score = score
+                r.quality_reasoning = reasoning
+
+        scorable = [r for r in results if r.response and not r.error]
+        await asyncio.gather(*[_score_one(r) for r in scorable])
     else:
         click.echo(f"  Judge provider '{judge_provider_name}' not available, skipping quality scoring", err=True)
 
@@ -233,10 +278,11 @@ async def run_evaluation(config: Config) -> tuple[list[EvalResult], list[Securit
         for r in results:
             security_findings.extend(r.security_findings)
 
-        # Flatten providers for security checks
+        # Use first model per provider for security checks
+        # (tests adversarial resistance of the provider, not per-model)
         flat_providers: dict[str, BaseProvider] = {}
         for pname, model_list in providers.items():
-            flat_providers[pname] = model_list[0][1]  # Use first model per provider
+            flat_providers[pname] = model_list[0][1]
 
         if config.security.injection:
             click.echo("Running injection tests...")

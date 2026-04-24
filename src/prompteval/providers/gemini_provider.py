@@ -16,18 +16,24 @@ except ImportError:
 
 class GeminiProvider(BaseProvider):
     def __init__(self, api_key: str, model: str, **kwargs):
-        self.model_name = model
+        self.model = model
         self.api_key = api_key
-        if HAS_GEMINI:
+        self.client = None
+        if HAS_GEMINI and api_key:
             self.client = genai.Client(api_key=api_key)
 
     def is_available(self) -> bool:
         return HAS_GEMINI and bool(self.api_key)
 
     async def complete(self, prompt: str, **kwargs) -> LLMResponse:
+        if self.client is None:
+            raise RuntimeError(
+                "GeminiProvider is not available. "
+                "Install the 'google-genai' package and provide a valid API key."
+            )
         start = time.perf_counter()
         response = await self.client.aio.models.generate_content(
-            model=self.model_name,
+            model=self.model,
             contents=prompt,
         )
         latency = (time.perf_counter() - start) * 1000
@@ -38,7 +44,7 @@ class GeminiProvider(BaseProvider):
             input_tokens=getattr(metadata, "prompt_token_count", 0),
             output_tokens=getattr(metadata, "candidates_token_count", 0),
             latency_ms=round(latency, 2),
-            model=self.model_name,
+            model=self.model,
             provider="gemini",
         )
 

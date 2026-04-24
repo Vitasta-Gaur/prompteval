@@ -18,13 +18,19 @@ class AnthropicProvider(BaseProvider):
     def __init__(self, api_key: str, model: str, **kwargs):
         self.model = model
         self.api_key = api_key
-        if HAS_ANTHROPIC:
+        self.client = None
+        if HAS_ANTHROPIC and api_key:
             self.client = anthropic.AsyncAnthropic(api_key=api_key)
 
     def is_available(self) -> bool:
         return HAS_ANTHROPIC and bool(self.api_key)
 
     async def complete(self, prompt: str, **kwargs) -> LLMResponse:
+        if self.client is None:
+            raise RuntimeError(
+                "AnthropicProvider is not available. "
+                "Install the 'anthropic' package and provide a valid API key."
+            )
         start = time.perf_counter()
         response = await self.client.messages.create(
             model=self.model,

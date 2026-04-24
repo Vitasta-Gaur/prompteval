@@ -4,6 +4,9 @@ import os
 import tempfile
 from pathlib import Path
 
+import click
+import pytest
+
 from prompteval.config import load_config, scaffold_project, _resolve_env_vars
 
 
@@ -64,3 +67,52 @@ def test_scaffold_project():
         assert (Path(tmpdir) / "config.yaml").exists()
         assert (Path(tmpdir) / "prompts" / "summarize.yaml").exists()
         assert (Path(tmpdir) / "datasets" / "articles.yaml").exists()
+
+
+def test_invalid_workers_raises():
+    config_content = """
+providers: {}
+evaluation:
+  workers: 0
+scoring:
+  judge_provider: anthropic
+  judge_model: claude-sonnet-4-20250514
+"""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        f.write(config_content)
+        f.flush()
+        with pytest.raises(click.ClickException, match="workers"):
+            load_config(f.name)
+    os.unlink(f.name)
+
+
+def test_invalid_timeout_raises():
+    config_content = """
+providers: {}
+evaluation:
+  timeout: -5
+scoring:
+  judge_provider: anthropic
+  judge_model: claude-sonnet-4-20250514
+"""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        f.write(config_content)
+        f.flush()
+        with pytest.raises(click.ClickException, match="timeout"):
+            load_config(f.name)
+    os.unlink(f.name)
+
+
+def test_empty_judge_provider_raises():
+    config_content = """
+providers: {}
+scoring:
+  judge_provider: ""
+  judge_model: claude-sonnet-4-20250514
+"""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        f.write(config_content)
+        f.flush()
+        with pytest.raises(click.ClickException, match="judge_provider"):
+            load_config(f.name)
+    os.unlink(f.name)

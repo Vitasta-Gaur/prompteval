@@ -28,6 +28,7 @@ async def score_quality(
         return float(data["score"]), data.get("reasoning")
     except (json.JSONDecodeError, KeyError, TypeError) as e:
         logger.warning(f"Failed to parse judge response: {e}")
+        logger.debug(f"Raw judge response: {result.text if 'result' in dir() else 'N/A'}")
         return None, None
     except Exception as e:
         logger.warning(f"Judge scoring failed: {e}")

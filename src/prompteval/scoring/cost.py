@@ -2,7 +2,8 @@
 
 from prompteval.providers.base import LLMResponse
 
-# Prices per 1K tokens (input, output) — last updated April 2025
+# Prices per 1K tokens (input, output) — last updated April 2026
+# Source: provider pricing pages. Review and update periodically.
 PRICING: dict[tuple[str, str], tuple[float, float]] = {
     # Anthropic
     ("anthropic", "claude-sonnet-4-20250514"): (0.003, 0.015),

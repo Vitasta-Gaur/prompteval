@@ -1,14 +1,18 @@
 """HTML report generator."""
 
+import logging
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
+import click
 from jinja2 import Environment, FileSystemLoader
 
 from prompteval.config import Config
 from prompteval.evaluator import EvalResult
 from prompteval.security.pii import SecurityFinding
+
+logger = logging.getLogger(__name__)
 
 
 def _build_summary(results: list[EvalResult], security_findings: list[SecurityFinding]) -> dict:
@@ -159,7 +163,11 @@ def generate_report(
     """Generate self-contained HTML report."""
     template_dir = Path(__file__).parent
     env = Environment(loader=FileSystemLoader(str(template_dir)), autoescape=True)
-    template = env.get_template("template.html")
+
+    try:
+        template = env.get_template("template.html")
+    except Exception as e:
+        raise click.ClickException(f"Failed to load report template: {e}")
 
     context = {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -182,5 +190,12 @@ def generate_report(
         ],
     }
 
-    html = template.render(**context)
-    Path(output_path).write_text(html)
+    try:
+        html = template.render(**context)
+    except Exception as e:
+        raise click.ClickException(f"Failed to render report: {e}")
+
+    try:
+        Path(output_path).write_text(html)
+    except OSError as e:
+        raise click.ClickException(f"Failed to write report to '{output_path}': {e}")

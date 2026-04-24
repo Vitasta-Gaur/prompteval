@@ -34,9 +34,12 @@ def test_us_phone_detected():
 
 
 def test_international_phone_detected():
-    # phone_intl pattern has \b before +, which doesn't match word boundary.
-    # European phones are covered by the phone_eu pattern instead.
-    results = _find("Call +33 612345678", "phone_eu")
+    results = _find("Call +447911123456", "phone_intl")
+    assert len(results) >= 1
+
+
+def test_international_phone_with_separator():
+    results = _find("Call +44-7911123456", "phone_intl")
     assert len(results) >= 1
 
 

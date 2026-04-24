@@ -1,5 +1,6 @@
 """Configuration loading and project scaffolding."""
 
+import logging
 import os
 import re
 from dataclasses import dataclass, field
@@ -8,6 +9,8 @@ from pathlib import Path
 
 import click
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -57,12 +60,34 @@ class Config:
 def _resolve_env_vars(value):
     """Recursively resolve ${ENV_VAR} placeholders in strings."""
     if isinstance(value, str):
-        return re.sub(r"\$\{(\w+)\}", lambda m: os.environ.get(m.group(1), ""), value)
+        def _replace(m):
+            var_name = m.group(1)
+            resolved = os.environ.get(var_name, "")
+            if not resolved:
+                logger.warning(f"Environment variable '{var_name}' is not set or empty")
+            return resolved
+        return re.sub(r"\$\{(\w+)\}", _replace, value)
     if isinstance(value, dict):
         return {k: _resolve_env_vars(v) for k, v in value.items()}
     if isinstance(value, list):
         return [_resolve_env_vars(v) for v in value]
     return value
+
+
+def _validate_config(config: Config):
+    """Validate config values and raise on invalid settings."""
+    if config.evaluation.workers < 1:
+        raise click.ClickException(
+            f"Invalid config: evaluation.workers must be >= 1, got {config.evaluation.workers}"
+        )
+    if config.evaluation.timeout < 1:
+        raise click.ClickException(
+            f"Invalid config: evaluation.timeout must be >= 1, got {config.evaluation.timeout}"
+        )
+    if not config.scoring.judge_provider:
+        raise click.ClickException("Invalid config: scoring.judge_provider must not be empty")
+    if not config.scoring.judge_model:
+        raise click.ClickException("Invalid config: scoring.judge_model must not be empty")
 
 
 def load_config(path: str) -> Config:
@@ -111,7 +136,9 @@ def load_config(path: str) -> Config:
         judge_model=score_data.get("judge_model", "claude-sonnet-4-20250514"),
     )
 
-    return Config(providers=providers, evaluation=evaluation, security=security, scoring=scoring)
+    config = Config(providers=providers, evaluation=evaluation, security=security, scoring=scoring)
+    _validate_config(config)
+    return config
 
 
 def scaffold_project(target_dir: str):
