@@ -21,6 +21,17 @@ PII_PATTERNS: dict[str, tuple[str, str, str]] = {
     "credit_card": (r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b", "high", "Credit card number detected"),
     "phone_us": (r"\b\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b", "medium", "US phone number detected"),
     "phone_intl": (r"\b\+\d{1,3}[-.\s]?\d{4,14}\b", "medium", "International phone number detected"),
+    "phone_eu": (
+        r"\b\+?(?:30|31|32|33|34|35[0-9]|36|37[0-9]|38[0-9]|39|40|41|42[0-9]|43|44|45|46|47|48|49)"
+        r"[-.\s]?\d{4,12}\b",
+        "medium",
+        "European phone number detected",
+    ),
+    "iban": (
+        r"\b[A-Z]{2}\d{2}[-\s]?[A-Z0-9]{4}[-\s]?(?:[A-Z0-9]{4}[-\s]?){2,7}[A-Z0-9]{1,4}\b",
+        "high",
+        "IBAN account number detected",
+    ),
     "ip_address": (r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "low", "IP address detected"),
 }
 
