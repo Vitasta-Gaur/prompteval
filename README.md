@@ -12,24 +12,6 @@ You write prompts. But how do you know they're good? PromptEval lets you:
 - **Detect security issues** — prompt injection, PII leakage, and jailbreak vulnerabilities
 - **Generate a single HTML report** you can share with your team
 
-## PromptEval vs promptfoo
-
-| Feature | PromptEval | promptfoo |
-|---|---|---|
-| **Focus** | Evaluation + security auditing | Evaluation + testing |
-| **Security checks** | Built-in: injection, PII leakage, jailbreak testing | Requires plugins or custom assertions |
-| **Setup** | `pip install` + one YAML file | npm install + YAML config |
-| **Report** | Single self-contained HTML file (offline, shareable) | Web UI (requires running server) |
-| **LLM-as-judge** | Built-in with configurable judge model | Supported via assertion types |
-| **Cost tracking** | Automatic per-run cost estimation | Limited |
-| **Footprint** | Lightweight Python CLI (~500 lines core) | Full Node.js application |
-| **Language** | Python — native to ML/AI workflows | JavaScript/TypeScript |
-| **Extensibility** | Add providers by subclassing `BaseProvider` | Plugin system with many built-in providers |
-| **Maturity** | New, focused | Battle-tested, large community |
-
-**Choose PromptEval if** you want built-in security auditing, a portable HTML report, and a lightweight Python tool that fits into AI/ML workflows.
-
-**Choose promptfoo if** you need a mature ecosystem with dozens of assertion types, a web UI, and CI/CD integrations out of the box.
 
 ## Quick Start
 
