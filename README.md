@@ -110,6 +110,8 @@ prompteval run -vv                      # Debug output
 
 ## Sample Report
 
+![Sample Report Screenshot](examples/sample_report_screenshot.png)
+
 Check out a [sample report](examples/sample_report.html) to see what PromptEval generates. Download and open it in your browser to explore the interactive charts and tables.
 
 ## What the Report Shows
